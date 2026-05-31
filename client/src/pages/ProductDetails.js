@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import API from "../api/axios";
 import { addToCart } from "../services/cartService";
 
 function ProductDetails() {
   const { id } = useParams();
+  const navigate = useNavigate();
 
   const [product, setProduct] = useState(null);
   const [reviews, setReviews] = useState([]);
@@ -14,19 +15,15 @@ function ProductDetails() {
   const [adding, setAdding] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // ✅ FETCH ON LOAD
   useEffect(() => {
     fetchProduct();
     fetchReviews();
     // eslint-disable-next-line
   }, [id]);
 
-  // =========================
-  // ✅ FETCH PRODUCT
-  // =========================
   const fetchProduct = async () => {
     try {
-      const res = await API.get(`/products/${id}`);
+      const res = await API.get("/products/" + id);
       setProduct(res.data);
     } catch (err) {
       console.error("Product fetch failed:", err);
@@ -35,174 +32,303 @@ function ProductDetails() {
     }
   };
 
-  // =========================
-  // ✅ FETCH REVIEWS
-  // =========================
   const fetchReviews = async () => {
     try {
-      const res = await API.get(`/reviews/${id}`);
+      const res = await API.get("/reviews/" + id);
       setReviews(res.data || []);
     } catch (err) {
       console.error("Failed to fetch reviews:", err);
     }
   };
 
-  // =========================
-  // ✅ ADD TO CART
-  // =========================
   const handleAddToCart = async () => {
     try {
       setAdding(true);
       await addToCart(id, 1);
-      alert("Added to cart ✅");
+      alert("Added to cart!");
     } catch (err) {
       console.error(err);
-      alert("Failed to add to cart ❌");
+      alert("Failed to add to cart");
     } finally {
       setAdding(false);
     }
   };
 
-  // =========================
-  // ✅ SUBMIT REVIEW (FIXED TOKEN ISSUE)
-  // =========================
   const submitReview = async () => {
     if (!comment.trim()) {
       alert("Please write a review");
       return;
     }
-
     const token = localStorage.getItem("token");
-
     if (!token) {
-      alert("Please login first ⚠️");
+      alert("Please login first");
       return;
     }
-
     try {
       setSubmitting(true);
-
       await API.post(
-        `/reviews/${id}`,
+        "/reviews/" + id,
         { rating, comment },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        { headers: { Authorization: "Bearer " + token } }
       );
-
-      alert("Review added ✅");
+      alert("Review added!");
       setComment("");
       setRating(5);
       fetchReviews();
     } catch (err) {
-      console.error("Review error:", err.response?.data || err.message);
-      alert(err.response?.data?.message || "Review failed ❌");
+      alert(err.response?.data?.message || "Review failed");
     } finally {
       setSubmitting(false);
     }
   };
 
-  // =========================
-  // ✅ IMAGE HANDLER (FIXED)
-  // =========================
-  const getImageUrl = () => {
-    if (!product?.image) return "/images/images.jpg";
+  const starLabel = (n) => "⭐".repeat(n);
 
-    // if already full URL (future cloudinary)
-    if (product.image.startsWith("http")) return product.image;
+  if (loading) {
+    return (
+      <div style={{ minHeight: "100vh", backgroundColor: "#f8f5f0", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <p style={{ fontSize: "20px", color: "#5c3d2e" }}>Loading product...</p>
+      </div>
+    );
+  }
 
-    // local fallback
-    return "/images/images.jpg";
-  };
-
-  // =========================
-  // ✅ UI STATES
-  // =========================
-  if (loading) return <p style={{ padding: 20 }}>Loading product...</p>;
-  if (!product) return <p style={{ padding: 20 }}>Product not found</p>;
+  if (!product) {
+    return (
+      <div style={{ minHeight: "100vh", backgroundColor: "#f8f5f0", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <p style={{ fontSize: "20px", color: "#5c3d2e" }}>Product not found</p>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ padding: "20px" }}>
-      <h2>{product.title}</h2>
+    <div style={{ minHeight: "100vh", backgroundColor: "#f8f5f0", padding: "32px" }}>
 
-      {/* ✅ FIXED IMAGE */}
-      <img
-        src={getImageUrl()}
-        alt={product.title}
-        width="250"
-        style={{ objectFit: "cover", borderRadius: "8px" }}
-      />
-
-      <p style={{ marginTop: 10 }}>{product.description}</p>
-      <h3>₹{product.price}</h3>
-
+      {/* BACK BUTTON */}
       <button
-        onClick={handleAddToCart}
-        disabled={adding}
-        style={{ marginTop: 10 }}
+        onClick={() => navigate(-1)}
+        style={{
+          backgroundColor: "transparent",
+          border: "2px solid #5c3d2e",
+          color: "#5c3d2e",
+          padding: "10px 20px",
+          borderRadius: "12px",
+          fontWeight: "600",
+          cursor: "pointer",
+          marginBottom: "32px",
+          fontSize: "14px",
+        }}
       >
-        {adding ? "Adding..." : "Add to Cart"}
+        ← Back
       </button>
 
-      {/* ⭐ REVIEW FORM */}
-      <hr style={{ margin: "30px 0" }} />
-      <h3>Write a Review</h3>
+      {/* PRODUCT CARD */}
+      <div style={{
+        backgroundColor: "white",
+        borderRadius: "24px",
+        boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+        overflow: "hidden",
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: "0",
+        marginBottom: "48px",
+      }}>
 
-      <select
-        value={rating}
-        onChange={(e) => setRating(Number(e.target.value))}
-      >
-        {[5, 4, 3, 2, 1].map((r) => (
-          <option key={r} value={r}>
-            {r} Star
-          </option>
-        ))}
-      </select>
+        {/* LEFT - IMAGE */}
+        <div style={{ position: "relative" }}>
+          <img
+            src={product.image}
+            alt={product.title}
+            style={{ width: "100%", height: "500px", objectFit: "cover" }}
+            onError={(e) => {
+              e.target.src = "https://via.placeholder.com/600x500?text=No+Image";
+            }}
+          />
+          {/* CATEGORY BADGE */}
+          <div style={{
+            position: "absolute", top: "16px", left: "16px",
+            backgroundColor: "#b85c38", color: "white",
+            padding: "6px 16px", borderRadius: "999px",
+            fontWeight: "600", fontSize: "13px"
+          }}>
+            {product.category}
+          </div>
+        </div>
 
-      <br />
+        {/* RIGHT - DETAILS */}
+        <div style={{ padding: "48px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
 
-      <textarea
-        placeholder="Write your review..."
-        value={comment}
-        onChange={(e) => setComment(e.target.value)}
-        style={{ width: "300px", height: "80px", marginTop: 10 }}
-      />
+          <h1 style={{ fontSize: "36px", fontWeight: "800", color: "#3e2c23", marginBottom: "8px" }}>
+            {product.title}
+          </h1>
 
-      <br />
+          <p style={{ color: "#aaa", fontSize: "14px", marginBottom: "16px" }}>
+            by {product.seller?.name || "Local Artisan"}
+          </p>
 
-      <button
-        onClick={submitReview}
-        disabled={submitting}
-        style={{ marginTop: 10 }}
-      >
-        {submitting ? "Submitting..." : "Submit Review"}
-      </button>
+          {/* RATING */}
+          <div style={{ marginBottom: "20px", fontSize: "18px" }}>
+            ⭐⭐⭐⭐⭐
+            <span style={{ color: "#aaa", fontSize: "14px", marginLeft: "8px" }}>
+              ({reviews.length} reviews)
+            </span>
+          </div>
 
-      {/* ⭐ REVIEWS LIST */}
-      <hr style={{ margin: "30px 0" }} />
-      <h3>Customer Reviews</h3>
+          {/* PRICE */}
+          <p style={{ fontSize: "42px", fontWeight: "800", color: "#b85c38", marginBottom: "24px" }}>
+            ₹{product.price}
+          </p>
 
-      {reviews.length === 0 ? (
-        <p>No reviews yet</p>
-      ) : (
-        reviews.map((rev) => (
-          <div
-            key={rev._id}
+          {/* DESCRIPTION */}
+          <p style={{ fontSize: "16px", color: "#666", lineHeight: "1.8", marginBottom: "36px" }}>
+            {product.description}
+          </p>
+
+          {/* ADD TO CART */}
+          <button
+            onClick={handleAddToCart}
+            disabled={adding}
             style={{
-              border: "1px solid #ccc",
-              padding: 10,
-              margin: "10px 0",
-              borderRadius: "6px",
+              backgroundColor: adding ? "#aaa" : "#5c3d2e",
+              color: "white",
+              padding: "18px 32px",
+              borderRadius: "16px",
+              border: "none",
+              fontSize: "18px",
+              fontWeight: "700",
+              cursor: adding ? "not-allowed" : "pointer",
+              transition: "background 0.2s",
+            }}
+            onMouseOver={(e) => { if (!adding) e.target.style.backgroundColor = "#3e2c23"; }}
+            onMouseOut={(e) => { if (!adding) e.target.style.backgroundColor = "#5c3d2e"; }}
+          >
+            {adding ? "Adding to Cart..." : "🛒 Add to Cart"}
+          </button>
+
+        </div>
+      </div>
+
+      {/* REVIEWS SECTION */}
+      <div style={{
+        backgroundColor: "white",
+        borderRadius: "24px",
+        padding: "40px",
+        boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+      }}>
+
+        <h2 style={{ fontSize: "28px", fontWeight: "800", color: "#3e2c23", marginBottom: "32px" }}>
+          Customer Reviews
+        </h2>
+
+        {/* WRITE REVIEW */}
+        <div style={{
+          backgroundColor: "#f8f5f0",
+          borderRadius: "16px",
+          padding: "28px",
+          marginBottom: "36px",
+        }}>
+          <h3 style={{ fontSize: "20px", fontWeight: "700", color: "#3e2c23", marginBottom: "20px" }}>
+            Write a Review
+          </h3>
+
+          {/* STAR RATING */}
+          <div style={{ marginBottom: "16px" }}>
+            <label style={{ color: "#5c3d2e", fontWeight: "600", fontSize: "14px", display: "block", marginBottom: "8px" }}>
+              Rating
+            </label>
+            <select
+              value={rating}
+              onChange={(e) => setRating(Number(e.target.value))}
+              style={{
+                padding: "12px 16px",
+                borderRadius: "12px",
+                border: "2px solid #d6c5b5",
+                fontSize: "16px",
+                color: "#3e2c23",
+                backgroundColor: "white",
+                cursor: "pointer",
+                outline: "none",
+              }}
+            >
+              {[5, 4, 3, 2, 1].map((r) => (
+                <option key={r} value={r}>
+                  {starLabel(r)} {r} Star{r > 1 ? "s" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* COMMENT */}
+          <textarea
+            placeholder="Share your experience with this product..."
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            rows="4"
+            style={{
+              width: "100%",
+              padding: "14px 16px",
+              borderRadius: "12px",
+              border: "2px solid #d6c5b5",
+              fontSize: "16px",
+              color: "#3e2c23",
+              backgroundColor: "white",
+              resize: "vertical",
+              outline: "none",
+              boxSizing: "border-box",
+              marginBottom: "16px",
+            }}
+          />
+
+          <button
+            onClick={submitReview}
+            disabled={submitting}
+            style={{
+              backgroundColor: submitting ? "#aaa" : "#5c3d2e",
+              color: "white",
+              padding: "14px 32px",
+              borderRadius: "12px",
+              border: "none",
+              fontSize: "16px",
+              fontWeight: "700",
+              cursor: submitting ? "not-allowed" : "pointer",
             }}
           >
-            <strong>{rev.user?.name || "User"}</strong>
-            <p>⭐ {rev.rating} / 5</p>
-            <p>{rev.comment}</p>
+            {submitting ? "Submitting..." : "Submit Review"}
+          </button>
+        </div>
+
+        {/* REVIEWS LIST */}
+        {reviews.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "32px", color: "#aaa" }}>
+            <p style={{ fontSize: "18px" }}>No reviews yet. Be the first to review!</p>
           </div>
-        ))
-      )}
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            {reviews.map((rev) => (
+              <div
+                key={rev._id}
+                style={{
+                  border: "2px solid #f0e8df",
+                  padding: "20px",
+                  borderRadius: "16px",
+                  backgroundColor: "#fdfaf7",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                  <strong style={{ color: "#3e2c23", fontSize: "16px" }}>
+                    {rev.user?.name || "Anonymous"}
+                  </strong>
+                  <span style={{ color: "#f59e0b", fontSize: "16px" }}>
+                    {"⭐".repeat(rev.rating)}
+                  </span>
+                </div>
+                <p style={{ color: "#666", fontSize: "15px", lineHeight: "1.6" }}>
+                  {rev.comment}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

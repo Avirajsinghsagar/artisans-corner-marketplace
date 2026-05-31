@@ -1,16 +1,10 @@
 import { Navigate } from "react-router-dom";
 
 function ProtectedRoute({ children }) {
-  let userInfo = null;
+  // ✅ FIXED: check token separately, not inside userInfo
+  const token = localStorage.getItem("token");
 
-  try {
-    userInfo = JSON.parse(localStorage.getItem("userInfo"));
-  } catch (err) {
-    userInfo = null;
-  }
-
-  // ✅ only check login
-  if (!userInfo || !userInfo.token) {
+  if (!token) {
     return <Navigate to="/login" replace />;
   }
 

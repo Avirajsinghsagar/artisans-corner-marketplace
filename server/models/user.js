@@ -15,9 +15,17 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-
-    // 🔥 MUST EXIST
     isAdmin: {
+      type: Boolean,
+      default: false,
+    },
+    // ✅ ADD THESE TWO MISSING FIELDS
+    role: {
+      type: String,
+      enum: ["buyer", "seller", "admin"],
+      default: "buyer",
+    },
+    isSeller: {
       type: Boolean,
       default: false,
     },

@@ -1,25 +1,32 @@
 const Product = require("../models/product");
 const Order = require("../models/order");
 
-// ✅ Seller dashboard stats
 exports.getSellerStats = async (req, res) => {
   try {
     const sellerId = req.user._id;
 
-    // total products of seller
+    // ✅ total products by this seller
     const totalProducts = await Product.countDocuments({
       seller: sellerId,
     });
 
-    // orders containing seller products
+    // ✅ find all products by this seller first
+    const sellerProducts = await Product.find(
+      { seller: sellerId },
+      "_id"
+    );
+    const sellerProductIds = sellerProducts.map((p) => p._id.toString());
+
+    // ✅ find orders that contain seller's products
     const orders = await Order.find({
-      "orderItems.seller": sellerId,
+      "orderItems.product": { $in: sellerProductIds },
     });
 
     const totalOrders = orders.length;
 
+    // ✅ FIXED: use totalPrice not totalAmount
     const totalRevenue = orders.reduce(
-      (sum, order) => sum + (order.totalAmount || 0),
+      (sum, order) => sum + (order.totalPrice || 0),
       0
     );
 

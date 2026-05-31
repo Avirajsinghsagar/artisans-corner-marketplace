@@ -9,33 +9,34 @@ const productRoutes = require("./routes/productRoutes");
 const cartRoutes = require("./routes/cartRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
-const paymentRoutes = require("./routes/paymentRoutes"); // ✅ ADD THIS
+const paymentRoutes = require("./routes/paymentRoutes");
+const aiRoutes = require("./routes/aiRoutes"); // ✅ AI ROUTES
 
 const { protect } = require("./middleware/authMiddleware");
+const { getSellerStats } = require("./controllers/sellerController");
 
 const app = express();
 
-// connect database
 connectDB();
 
-// middlewares
 app.use(cors());
 app.use(express.json());
 
-// ✅ ROUTES (ADD HERE WITH OTHERS)
+// ✅ ALL ROUTES
 app.use("/api/users", userRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/reviews", reviewRoutes);
-app.use("/api/payments", paymentRoutes); // ✅ ADD HERE
+app.use("/api/payments", paymentRoutes);
+app.use("/api/ai", aiRoutes); // ✅ AI ROUTES
+
+// seller stats
+app.get("/api/seller/stats", protect, getSellerStats);
 
 // test route
 app.get("/api/protected", protect, (req, res) => {
-  res.json({
-    message: "Protected route accessed",
-    user: req.user,
-  });
+  res.json({ message: "Protected route accessed", user: req.user });
 });
 
 app.get("/", (req, res) => {
@@ -43,7 +44,6 @@ app.get("/", (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

@@ -1,120 +1,81 @@
 const express = require("express");
 const router = express.Router();
 
-const Product = require("../models/product");
+const {
+  createProduct,
+  getProducts,
+  getSingleProduct,
+  deleteProduct,
+  getMyProducts,
+} = require("../controllers/productController");
+
 const { protect } = require("../middleware/authMiddleware");
 const upload = require("../middleware/upload");
 const cloudinary = require("../config/cloudinary");
+const Product = require("../models/product");
 
-/* =========================================
-   CREATE PRODUCT (SELLER)
-========================================= */
-router.post("/", protect, upload.single("image"), async (req, res) => {
+/*=========================================
+   CREATE PRODUCT
+=========================================*/
+router.post("/", protect, upload.single("image"), createProduct);
+
+/*=========================================
+   GET MY PRODUCTS
+=========================================*/
+router.get("/my-products", protect, getMyProducts);
+
+/*=========================================
+   GET ALL PRODUCTS
+=========================================*/
+router.get("/", getProducts);
+
+/*=========================================
+   GET SINGLE PRODUCT
+=========================================*/
+router.get("/:id", getSingleProduct);
+
+/*=========================================
+   UPDATE PRODUCT ✅ FIXED
+=========================================*/
+router.put("/:id", protect, upload.single("image"), async (req, res) => {
   try {
-    const { title, description, price } = req.body;
+    const product = await Product.findById(req.params.id);
 
-    // validation
-    if (!title || !description || !price) {
-      return res.status(400).json({ message: "All fields required" });
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
     }
 
-    if (!req.file) {
-      return res.status(400).json({ message: "Image is required" });
+    // ✅ only seller who owns it can edit
+    if (product.seller.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: "Not authorized to edit this product" });
     }
 
-    // upload to cloudinary
-    const result = await cloudinary.uploader.upload(req.file.path, {
-      folder: "artisans",
-    });
+    const { title, description, price, category } = req.body;
 
-    // create product
-    const product = new Product({
-      title,
-      description,
-      price,
-      image: result.secure_url,
-      seller: req.user._id, // 🔥 VERY IMPORTANT
-    });
+    if (title) product.title = title;
+    if (description) product.description = description;
+    if (price) product.price = Number(price);
+    if (category) product.category = category;
+
+    // ✅ upload new image to Cloudinary only if new file provided
+    if (req.file) {
+      const result = await cloudinary.uploader.upload(req.file.path, {
+        folder: "artisans-products",
+      });
+      product.image = result.secure_url;
+    }
 
     await product.save();
-
-    res.status(201).json(product);
-  } catch (error) {
-    console.error("Create product error:", error.message);
-    res.status(500).json({ message: "Server error creating product" });
-  }
-});
-
-/* =========================================
-   GET ALL PRODUCTS (PUBLIC)
-========================================= */
-router.get("/", async (req, res) => {
-  try {
-    const products = await Product.find().sort({ createdAt: -1 });
-    res.json(products);
-  } catch (error) {
-    res.status(500).json({ message: "Server error fetching products" });
-  }
-});
-
-/* =========================================
-   GET SINGLE PRODUCT
-========================================= */
-router.get("/:id", async (req, res) => {
-  try {
-    const product = await Product.findById(req.params.id);
-
-    if (!product) {
-      return res.status(404).json({ message: "Product not found" });
-    }
-
     res.json(product);
   } catch (error) {
-    res.status(500).json({ message: "Server error fetching product" });
+    console.error("Update product error:", error);
+    res.status(500).json({ message: "Server error updating product" });
   }
 });
 
-/* =========================================
-   DELETE PRODUCT (SELLER ONLY)
-========================================= */
-router.delete("/:id", protect, async (req, res) => {
-  try {
-    const product = await Product.findById(req.params.id);
-
-    if (!product) {
-      return res.status(404).json({ message: "Product not found" });
-    }
-
-    // 🔥 only owner or admin
-    if (
-      product.seller.toString() !== req.user._id.toString() &&
-      !req.user.isAdmin
-    ) {
-      return res.status(403).json({ message: "Not authorized" });
-    }
-
-    await product.deleteOne();
-
-    res.json({ message: "Product deleted" });
-  } catch (error) {
-    res.status(500).json({ message: "Server error deleting product" });
-  }
-});
-
-/* =========================================
-   ⭐ GET MY PRODUCTS (SELLER DASHBOARD)
-========================================= */
-router.get("/my-products", protect, async (req, res) => {
-  try {
-    const products = await Product.find({
-      seller: req.user._id,
-    }).sort({ createdAt: -1 });
-
-    res.json(products);
-  } catch (error) {
-    console.error("Get seller products error:", error);
-    res.status(500).json({ message: "Server error fetching seller products" });
-  }
-});
+/*=========================================
+   DELETE PRODUCT
+=========================================*/
+router.delete("/:id", protect, deleteProduct);
 
 module.exports = router;

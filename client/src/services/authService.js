@@ -3,11 +3,9 @@ import API from "../api/axios";
 export const loginUser = async (data) => {
   const res = await API.post("/users/login", data);
 
-  // ✅ store token
+  // ✅ FIXED: res.data = { token, user: {...} }
   localStorage.setItem("token", res.data.token);
-
-  // ✅ store full user info (includes isAdmin)
-  localStorage.setItem("userInfo", JSON.stringify(res.data));
+  localStorage.setItem("userInfo", JSON.stringify(res.data.user));
 
   return res.data;
 };

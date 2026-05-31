@@ -1,43 +1,29 @@
 const express = require("express");
 const router = express.Router();
-
-// ✅ VERY IMPORTANT — load stripe AFTER dotenv
 const Stripe = require("stripe");
+const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+const { protect } = require("../middleware/authMiddleware");
 
-// 🔥 DEBUG (remove later)
-console.log("STRIPE KEY:", process.env.STRIPE_SECRET_KEY);
-
-// ✅ initialize stripe safely
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-
-// ===============================
-// CREATE PAYMENT INTENT
-// ===============================
-router.post("/create-payment-intent", async (req, res) => {
+// ✅ Create Payment Intent
+router.post("/create-payment-intent", protect, async (req, res) => {
   try {
     const { amount } = req.body;
 
-    if (!amount) {
-      return res.status(400).json({
-        message: "Amount is required",
-      });
+    if (!amount || amount < 1) {
+      return res.status(400).json({ message: "Invalid amount" });
     }
 
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // ₹ → paise
+      amount: Math.round(amount), // already in paise from frontend
       currency: "inr",
-      automatic_payment_methods: { enabled: true },
     });
 
-    res.json({
-      clientSecret: paymentIntent.client_secret,
-    });
+    res.json({ clientSecret: paymentIntent.client_secret });
+
   } catch (error) {
-    console.error("Stripe error:", error.message);
-    res.status(500).json({
-      message: "Payment intent creation failed",
-    });
+    console.error("Payment intent error:", error);
+    res.status(500).json({ message: "Payment initialization failed" });
   }
 });
 
-module.exports = router;
+module.exports = router; // ✅ THIS is what was missing
